@@ -18,8 +18,18 @@ to add this plugin to your project you can add below tow lines in your project p
     sm_fitrus:
       git: https://github.com/SmartMindSYSCoder/Fitrus-plugin
 
-to start use this plugin must be call getPermissions()
-then call init  method like below:
+Now you can create instance of plugin :
+
+     final smFitrus = SmFitrus();
+
+
+To start use this plugin must be call getPermissions() like below:
+         
+
+    smFitrus.getPermissions();
+
+
+Then call init  method like below:
 
 
                   smFitrus.init();
@@ -42,6 +52,10 @@ then call init  method like below:
 
 
       await  smFitrus.startBFP(height: 165,weight: 55.5,gender: "M",birth:'19901203' );
+
+
+Note that :  the stream listen to check the update of state of connection and retrieve data
+
 
 You can also see the example
 
