@@ -16,7 +16,7 @@ samples, guidance on mobile development, and a full API reference.
 to add this plugin to your project you can add below tow lines in your project pubspec
 
     sm_fitrus:
-      git: https://github.com/SmartMind-New/Fitrus-plugin.git
+      git: https://github.com/SmartMindSYSCoder/Fitrus-plugin
 
 to start use this plugin must be call getPermissions()
 then call init  method like below:
