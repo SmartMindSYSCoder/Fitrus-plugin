@@ -89,7 +89,6 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
         // TODO: your plugin is now attached to an Activity
 //    this.activity = activityPluginBinding.getActivity();
         this.activity = activityPluginBinding.getActivity();
-//    this.applicationContext = activityPluginBinding.getApplicationContext();
         fitrusHandler = new FitrusHandler(activity, applicationContext);
 
 

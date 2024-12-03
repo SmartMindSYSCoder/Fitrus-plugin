@@ -130,7 +130,7 @@ return  true;
             activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
         }
         else{
-                Toast.makeText(applicationContext, " Permission not granted\nPlease check permisssion first", Toast.LENGTH_SHORT).show();
+                Toast.makeText(applicationContext, " Permission not granted\nPlease check permission first", Toast.LENGTH_SHORT).show();
 
         }
 
