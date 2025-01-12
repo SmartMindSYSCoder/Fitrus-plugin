@@ -57,22 +57,36 @@ class _MyAppState extends State<MyApp> {
               }, child: Text("Get Permissions")),
               SizedBox(height: 30,),
 
+
+              StreamBuilder(stream: smFitrus.getEvents(), builder: (bc,event){
+
+
+
+                return Column(children: [
+
+
+                  Text(event.data.toString())
+
+                ],);
+
+              }),
+
               TextButton(onPressed: ()async{
 
                 smFitrus.init();
-                smFitrus.statusStream.listen((data){
-
-
-
-                  if(data is FitrusModel){
-                  fitrusModel=data;
-
-                  }
-                  setState(() {
-                  });
-
-
-                });
+                // smFitrus.statusStream.listen((data){
+                //
+                //
+                //
+                //   if(data is FitrusModel){
+                //   fitrusModel=data;
+                //
+                //   }
+                //   setState(() {
+                //   });
+                //
+                //
+                // });
 
 
 

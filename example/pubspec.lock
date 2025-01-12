@@ -194,12 +194,10 @@ packages:
   sm_fitrus:
     dependency: "direct main"
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: "05393dc5bfd11ed06c982a858fcc6c553e9a0451"
-      url: "https://github.com/SmartMind-New/Fitrus-plugin.git"
-    source: git
-    version: "0.0.1"
+      path: ".."
+      relative: true
+    source: path
+    version: "0.0.2"
   source_span:
     dependency: transitive
     description:

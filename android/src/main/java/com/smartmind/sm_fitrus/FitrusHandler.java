@@ -127,7 +127,18 @@ return  true;
 
         if(isPermissionsGranted()) {
 
-            activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+            Log.d("init","init ****************************");
+
+            if(mFitLtServiceInterface ==null) {
+                activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+            }
+            else{
+                LocalBroadcastManager.getInstance(activity)
+                        .registerReceiver(mGattUpdateReceiver, mFitLtServiceInterface.getGattUpdateIntentFilter());
+                mFitLtServiceInterface.startFitrusScan(ScanSettings.SCAN_MODE_LOW_LATENCY, 10000);
+            }
+
+
         }
         else{
                 Toast.makeText(applicationContext, " Permission not granted\nPlease check permission first", Toast.LENGTH_SHORT).show();
@@ -144,6 +155,9 @@ return  true;
 
     private FitrusServiceInterface mFitLtServiceInterface = null;
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+       // Log.d("ServiceConnection","ServiceConnection *********************");
+
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             mFitLtServiceInterface = (FitrusServiceInterface) ((DeviceServiceBinder) iBinder).getService();
