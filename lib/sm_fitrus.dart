@@ -36,7 +36,7 @@ class SmFitrus {
   Future<void> init() async{
     methodChannel.invokeMethod('init');
 
-    _readStatus();
+   // _readStatus();
   }
 
   Future<void> startBFP({required double height,required double weight,required String gender,required String birth}) async{
@@ -109,6 +109,7 @@ class SmFitrus {
 
   Future<dynamic>  _readStatus() async{
 
+
     eventChannel
         .receiveBroadcastStream().listen((result){
 
@@ -154,5 +155,7 @@ final Map<String, dynamic> data = jsonDecode(result.toString());
     );
   }
 
-
+  Stream<String> getEvents() {
+    return eventChannel.receiveBroadcastStream().map((event) => event.toString());
+  }
 }
