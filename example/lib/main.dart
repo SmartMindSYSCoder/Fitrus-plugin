@@ -29,7 +29,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-
+smFitrus.init();
   }
 
 
@@ -56,6 +56,7 @@ class _MyAppState extends State<MyApp> {
                 smFitrus.getPermissions();
               }, child: Text("Get Permissions")),
               SizedBox(height: 30,),
+
 
 
               StreamBuilder(stream: smFitrus.getEvents(), builder: (bc,event){

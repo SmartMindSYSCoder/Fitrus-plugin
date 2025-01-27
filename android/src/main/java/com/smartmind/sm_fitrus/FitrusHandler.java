@@ -54,10 +54,21 @@ public class FitrusHandler implements EventChannel.StreamHandler{
 
         this.events = events;
 
-        Log.i("onListen","this is from onListen  ******************************"+events);
+      //  Log.i("onListen","this is from onListen  ******************************"+events);
 
         if (events != null) {
-            events.success(connectState);
+
+            try {
+                JSONObject inputObject = new JSONObject();
+
+                inputObject.put("connectState", connectState);
+                events.success(inputObject.toString());
+
+            } catch (Exception var5) {
+
+                Log.i("erorr",var5.getMessage());
+            }
+
         }
 
 
