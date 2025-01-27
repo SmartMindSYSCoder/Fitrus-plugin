@@ -107,6 +107,9 @@ public class FitrusLtResultData {
         public double bmi;
         public double bmr;
         public double waterPercentage;
+        public double protein;
+        public double minerals;
+        public double calorie;
         public String deviceName;
         public float firmwareVersion;
 

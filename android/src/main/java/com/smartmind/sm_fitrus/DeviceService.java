@@ -1760,6 +1760,9 @@ public class DeviceService extends Service implements FitrusServiceInterface {
                 double bmr = jsonObject.getDouble("bmr");
                 double bmi = jsonObject.getDouble("bmi");
                 double bwp = jsonObject.getDouble("bwp");
+                double calorie = jsonObject.getDouble("calorie");
+                double protein = jsonObject.getDouble("protein");
+                double minerals = jsonObject.getDouble("minerals");
                 this.mBody.measureDate = date;
                 this.mBody.bmi = bmi;
                 this.mBody.bmr = bmr;
@@ -1767,6 +1770,9 @@ public class DeviceService extends Service implements FitrusServiceInterface {
                 this.mBody.waterPercentage = bwp;
                 this.mBody.fatPercentage = bfp;
                 this.mBody.muscleMass = smm;
+                this.mBody.calorie = calorie;
+                this.mBody.minerals = minerals;
+                this.mBody.protein = protein;
                 this.mBody.result = FitrusLtResultData.RESULT.SUCCESS;
                 this.mBody.deviceName = this.getConnDeviceName(this.connectName);
                 this.mBody.firmwareVersion = Float.parseFloat(this.version);

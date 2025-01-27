@@ -366,6 +366,9 @@ return  true;
                         inputObject.put("fatMass", bfpResult.fatMass);
                         inputObject.put("fatPercentage", bfpResult.fatPercentage);
                         inputObject.put("muscleMass", bfpResult.muscleMass);
+                        inputObject.put("protein", bfpResult.protein);
+                        inputObject.put("calorie", bfpResult.calorie);
+                        inputObject.put("minerals", bfpResult.minerals);
                         events.success(inputObject.toString());
 
                     } catch (Exception var5) {
