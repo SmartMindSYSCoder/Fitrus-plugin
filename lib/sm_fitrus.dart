@@ -38,6 +38,10 @@ class SmFitrus {
 
    // _readStatus();
   }
+  Future<void> dispose() async{
+    methodChannel.invokeMethod('dispose');
+
+  }
 
   Future<void> startBFP({required double height,required double weight,required String gender,required String birth}) async{
 

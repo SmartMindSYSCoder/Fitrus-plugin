@@ -54,12 +54,21 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
             getPermissions();
 
 
-        } else if (call.method.equals("init")) {
+        }
+        else if (call.method.equals("init")) {
 
             init();
 
 
-        } else if (call.method.equals("startBFP")) {
+        }
+        else if (call.method.equals("dispose")) {
+
+            dispose();
+
+
+        }
+
+        else if (call.method.equals("startBFP")) {
 
             final Map<String, String> arguments = call.arguments();
             String gender = (String) arguments.get("gender");
@@ -80,7 +89,6 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         channel.setMethodCallHandler(null);
         eventChannel.setStreamHandler(null);
-        fitrusHandler.dispose();
 
     }
 
@@ -105,6 +113,7 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
     @Override
     public void onDetachedFromActivity() {
+       // fitrusHandler.dispose();
 
     }
 
@@ -129,6 +138,19 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
 
         fitrusHandler.init();
+//    android.widget.Toast.makeText(applicationContext, "Check Permission", Toast.LENGTH_SHORT).show();
+
+    }
+    public void dispose() {
+
+//    FitrusHandler fitrusHandler=new FitrusHandler(activity,applicationContext);
+
+        //  Log.i("fitrusHandler","**************************  "+fitrusHandler);
+        eventChannel.setStreamHandler(null);
+//    Log.i("SmFitrusPlugin", "EventChannel StreamHandler set");
+
+
+        fitrusHandler.dispose();
 //    android.widget.Toast.makeText(applicationContext, "Check Permission", Toast.LENGTH_SHORT).show();
 
     }
