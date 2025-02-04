@@ -107,57 +107,60 @@ class SmFitrus {
 
 
 
-  final StreamController _controller = StreamController<dynamic>();
+  // final StreamController _controller = StreamController<dynamic>();
 
-  Stream<dynamic> get statusStream => _controller.stream;
+  // Stream<dynamic> get statusStream => _controller.stream;
 
-  Future<dynamic>  _readStatus() async{
-
-
-    eventChannel
-        .receiveBroadcastStream().listen((result){
-
-// print("************************   data :$data");
-final Map<String, dynamic> data = jsonDecode(result.toString());
-
-
-
-     FitrusModel fitrusModel=FitrusModel(
-
-       hasData: data['hasData'] ?? false,
-       hasProgress: data['hasProgress'] ?? false,
-       isConnected: data['connectState'] !=null  && data['connectState'].toString().toLowerCase().contains("data")  || ['Connected','Service Discovered'].contains(data['connectState'].toString())  ,
-       connectionState: data['connectState'] ??"",
-       progress:data['progress'] !=null ? data['progress'].toString() :"",
-       bodyFat: BodyFat(
-         bmi:double.tryParse( data['bmi'].toString()) ??0.0 ,
-         bmr: double.tryParse(data['bmr'].toString()) ??0.0,
-         waterPercentage: double.tryParse(data['waterPercentage'].toString()) ??0.0,
-         fatMass: double.tryParse(data['fatMass'].toString()) ??0.0,
-         fatPercentage: double.tryParse(data['fatPercentage'].toString()) ??0.0,
-         muscleMass: double.tryParse(data['muscleMass'].toString()) ??0.0,
-
-
-       )
-
-
-
-
-     );
-
-
-
-      if (!_controller.isClosed) {
-        _controller.sink.add(fitrusModel);
-      }
-
-    },
-
-      onError: (error) {
-        debugPrint(' ***********************   Error in event stream: $error');
-      },
-    );
-  }
+//   Future<dynamic>  _readStatus() async{
+//
+//
+//     eventChannel
+//         .receiveBroadcastStream().listen((result){
+//
+// // print("************************   data :$data");
+// final Map<String, dynamic> data = jsonDecode(result.toString());
+//
+//
+//
+//      FitrusModel fitrusModel=FitrusModel(
+//
+//        hasData: data['hasData'] ?? false,
+//        hasProgress: data['hasProgress'] ?? false,
+//        isConnected: data['connectState'] !=null  && data['connectState'].toString().toLowerCase().contains("data")  || ['Connected','Service Discovered'].contains(data['connectState'].toString())  ,
+//        connectionState: data['connectState'] ??"",
+//        progress:data['progress'] !=null ? data['progress'].toString() :"",
+//        bodyFat: BodyFat(
+//          bmi:double.tryParse( data['bmi'].toString()) ??0.0 ,
+//          bmr: double.tryParse(data['bmr'].toString()) ??0.0,
+//          waterPercentage: double.tryParse(data['waterPercentage'].toString()) ??0.0,
+//          fatMass: double.tryParse(data['fatMass'].toString()) ??0.0,
+//          fatPercentage: double.tryParse(data['fatPercentage'].toString()) ??0.0,
+//          muscleMass: double.tryParse(data['muscleMass'].toString()) ??0.0,
+//          protein: double.tryParse(data['protein'].toString()) ??0.0,
+//          calorie: double.tryParse(data['calorie'].toString()) ??0.0,
+//          minerals: double.tryParse(data['minerals'].toString()) ??0.0,
+//
+//
+//        )
+//
+//
+//
+//
+//      );
+//
+//
+//
+//       if (!_controller.isClosed) {
+//         _controller.sink.add(fitrusModel);
+//       }
+//
+//     },
+//
+//       onError: (error) {
+//         debugPrint(' ***********************   Error in event stream: $error');
+//       },
+//     );
+//   }
 
   Stream<String> getEvents() {
     return eventChannel.receiveBroadcastStream().map((event) => event.toString());

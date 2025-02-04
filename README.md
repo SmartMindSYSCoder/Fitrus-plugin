@@ -1,22 +1,18 @@
 # sm_fitrus
 
-A new Flutter project.
+Fitrus Plugin.
 
 ## Getting Started
+This plugin enable you connect and read data from Fitrus device
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-to add this plugin to your project you can add below tow lines in your project pubspec
+To add this plugin to your project you can add below tow lines in your project pubspec
 
     sm_fitrus:
-      git: https://github.com/SmartMind-New/Fitrus-plugin.git
+      git: https://github.com/SmartMindSYSCoder/Fitrus-plugin.git
+
+To import it:
+    
+    import 'package:sm_fitrus/sm_fitrus.dart';
 
 Now you can create instance of plugin :
 
@@ -33,17 +29,43 @@ Then call init  method like below:
 
 
                   smFitrus.init();
-                  smFitrus.statusStream.listen((data){
 
-                  if(data is FitrusModel){
-                  fitrusModel=data;
+Now you can start listen to stream event  like:
 
-                  }
-                  setState(() {
-                  });
+                     StreamBuilder(stream: smFitrus.getEvents(), builder: (bc,event){
 
 
-                });
+
+                return Column(children: [
+
+
+                  Text(event.data.toString())
+
+                ],);
+
+              }),
+
+
+or 
+
+
+        smFitrus.getEvents().listen((event){
+
+
+
+       print("********************    event    $event");
+
+
+
+
+      var data=jsonDecode(event);
+
+     });
+
+
+
+
+      
 
    when status is service discovered  you can call startBFP  like below:
 

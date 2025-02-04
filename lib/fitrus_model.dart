@@ -16,4 +16,10 @@ class BodyFat{
 
   BodyFat({this.bmi=0,this.bmr=0,this.fatMass=0,this.fatPercentage=0,this.muscleMass=0,this.waterPercentage=0,this.calorie=0.0,this.minerals=0,this.protein=0});
 
+  @override
+  String toString() {
+
+    return "BMI:$bmi, \tBMR:$bmr, \tBodyFat:$fatPercentage, \tFatMas:$fatMass, \tMuscleMass:$muscleMass";
+  }
+
 }
