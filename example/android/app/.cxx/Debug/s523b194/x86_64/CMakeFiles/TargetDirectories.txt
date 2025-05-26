@@ -1,0 +1,2 @@
+D:/projects/sm_plugins/sm_fitrus/example/android/app/.cxx/Debug/s523b194/x86_64/CMakeFiles/edit_cache.dir
+D:/projects/sm_plugins/sm_fitrus/example/android/app/.cxx/Debug/s523b194/x86_64/CMakeFiles/rebuild_cache.dir

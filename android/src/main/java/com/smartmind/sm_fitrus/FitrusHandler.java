@@ -142,6 +142,7 @@ return  true;
 
             if(mFitLtServiceInterface ==null) {
                 activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+
             }
             else{
                 LocalBroadcastManager.getInstance(activity)

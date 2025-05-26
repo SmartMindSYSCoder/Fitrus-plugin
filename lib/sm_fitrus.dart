@@ -12,10 +12,8 @@ import 'package:sm_fitrus/fitrus_model.dart';
 class SmFitrus {
 
 
-  @visibleForTesting
   final methodChannel = const MethodChannel('sm_fitrus');
 
-  @visibleForTesting
   final eventChannel = const EventChannel("sm_fitrus_status");
 
   // Future<String?> getPlatformVersion() {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -75,19 +77,44 @@ smFitrus.init();
               TextButton(onPressed: ()async{
 
                 smFitrus.init();
-                // smFitrus.statusStream.listen((data){
-                //
-                //
-                //
-                //   if(data is FitrusModel){
-                //   fitrusModel=data;
-                //
-                //   }
-                //   setState(() {
-                //   });
-                //
-                //
-                // });
+                smFitrus.getEvents().listen((event){
+
+
+                  var data=jsonDecode(event);
+
+                  fitrusModel=FitrusModel(
+
+
+                      hasData: data['hasData'] ?? false,
+                      hasProgress: data['hasProgress'] ?? false,
+                      isConnected: data['connectState'] !=null  && data['connectState'].toString().toLowerCase().contains("data")  || ['Connected','Service Discovered'].contains(data['connectState'].toString())  ,
+                      connectionState: data['connectState'] ??"",
+                      progress:data['progress'] !=null ? data['progress'].toString() :"",
+                      bodyFat: BodyFat(
+                        bmi:double.tryParse( data['bmi'].toString()) ??0.0 ,
+                        bmr: double.tryParse(data['bmr'].toString()) ??0.0,
+                        waterPercentage: double.tryParse(data['waterPercentage'].toString()) ??0.0,
+                        fatMass: double.tryParse(data['fatMass'].toString()) ??0.0,
+                        fatPercentage: double.tryParse(data['fatPercentage'].toString()) ??0.0,
+                        muscleMass: double.tryParse(data['muscleMass'].toString()) ??0.0,
+                        protein: double.tryParse(data['protein'].toString()) ??0.0,
+                        calorie: double.tryParse(data['calorie'].toString()) ??0.0,
+                        minerals: double.tryParse(data['minerals'].toString()) ??0.0,
+
+
+                      )
+
+
+
+
+                  );
+
+
+                  setState(() {
+                  });
+
+
+                });
 
 
 
