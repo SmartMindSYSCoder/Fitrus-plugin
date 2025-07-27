@@ -429,6 +429,7 @@ return  true;
 
   public void   startBFP(String birth, double height, double weight, String gender){
       int code;
+      mFitLtServiceInterface.startFitrusScan(ScanSettings.SCAN_MODE_LOW_LATENCY, 10000);
 
       code = mFitLtServiceInterface.startBFP(
               birth,

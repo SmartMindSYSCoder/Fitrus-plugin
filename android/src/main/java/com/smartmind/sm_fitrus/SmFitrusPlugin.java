@@ -77,6 +77,7 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
             Double weight = Double.parseDouble((String) arguments.get("weight"));
 
 
+
             fitrusHandler.startBFP(birth, height, weight, gender);
 
 
