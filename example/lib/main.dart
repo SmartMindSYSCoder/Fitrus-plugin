@@ -31,7 +31,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-smFitrus.init();
+// smFitrus.init();
   }
 
 
@@ -77,6 +77,8 @@ smFitrus.init();
               TextButton(onPressed: ()async{
 
                 smFitrus.init();
+
+            await Future.delayed(Duration(seconds: 2));
                 smFitrus.getEvents().listen((event){
 
 
@@ -113,6 +115,9 @@ smFitrus.init();
                   setState(() {
                   });
 
+                  if(event.contains("bmi")){
+                    smFitrus.dispose();
+                  }
 
                 });
 

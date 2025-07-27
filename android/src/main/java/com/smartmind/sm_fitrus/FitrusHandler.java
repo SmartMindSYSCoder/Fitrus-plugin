@@ -139,15 +139,24 @@ return  true;
         if(isPermissionsGranted()) {
 
             Log.d("init","init ****************************");
+            activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+
+
+            LocalBroadcastManager.getInstance(activity)
+                    .registerReceiver(mGattUpdateReceiver, mFitLtServiceInterface.getGattUpdateIntentFilter());
+            mFitLtServiceInterface.startFitrusScan(ScanSettings.SCAN_MODE_LOW_LATENCY, 10000);
+
 
             if(mFitLtServiceInterface ==null) {
-                activity.bindService(new Intent(activity, DeviceService.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+
+
 
             }
             else{
-                LocalBroadcastManager.getInstance(activity)
-                        .registerReceiver(mGattUpdateReceiver, mFitLtServiceInterface.getGattUpdateIntentFilter());
-                mFitLtServiceInterface.startFitrusScan(ScanSettings.SCAN_MODE_LOW_LATENCY, 10000);
+
+
+
+
             }
 
 
@@ -383,6 +392,7 @@ return  true;
                         inputObject.put("minerals", bfpResult.minerals);
                         events.success(inputObject.toString());
 
+
                     } catch (Exception var5) {
 
                     }
@@ -429,6 +439,10 @@ return  true;
 
   public void   startBFP(String birth, double height, double weight, String gender){
       int code;
+
+
+      Log.i("connection-status", " ***********  "+connectState + "************");
+
       mFitLtServiceInterface.startFitrusScan(ScanSettings.SCAN_MODE_LOW_LATENCY, 10000);
 
       code = mFitLtServiceInterface.startBFP(
