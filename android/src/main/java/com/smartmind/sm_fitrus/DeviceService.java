@@ -62,7 +62,11 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
-
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class DeviceService extends Service implements FitrusServiceInterface {
 //    private final AsyncHttpClient aClient = new SyncHttpClient();
@@ -1572,20 +1576,60 @@ public class DeviceService extends Service implements FitrusServiceInterface {
 
         RequestQueue requestQueue = Volley.newRequestQueue(this);
 
-        String postUrl = "http://52.188.66.123:8381/body/guest";
+//        String postUrl = "http://52.188.66.123:8381/body/guest";
+        String postUrl = "https://api.thefitrus.com/fitrus-ml/measure/bodyfat";
 
 
         JSONObject inputObject = new JSONObject();
 
         try {
+
+
+            int age = 0;
+            if (birth != null && birth.matches("\\d{8}")) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+                    Date birthDate = sdf.parse(birth);
+
+                    Calendar today = Calendar.getInstance();
+                    Calendar dob = Calendar.getInstance();
+                    dob.setTime(birthDate);
+
+                    age = today.get(Calendar.YEAR) - dob.get(Calendar.YEAR);
+
+                    // adjust if today's date is before birthday
+                    if (today.get(Calendar.DAY_OF_YEAR) < dob.get(Calendar.DAY_OF_YEAR)) {
+                        age--;
+                    }
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // --- Convert gender ---
+            String genderNew = "male"; // default
+            if (gender != null) {
+                if (gender.equalsIgnoreCase("M")) {
+                    genderNew = "male";
+                } else if (gender.equalsIgnoreCase("F")) {
+                    genderNew = "female";
+                }
+            }
+
             inputObject.put("birth", this.birth);
-            inputObject.put("gender", this.gender);
+            inputObject.put("age", age);
+            inputObject.put("gender", genderNew);
             inputObject.put("device", this.getDeviceCode());
             inputObject.put("height", this.height);
             inputObject.put("weight", this.weight);
             inputObject.put("value", value);
+            inputObject.put("voltage", value);
+            inputObject.put("correct", 0);
             inputObject.put("bodyType", this.bodyType);
             inputObject.put("version", this.version);
+
+
+
         } catch (Exception var6) {
             Exception e = var6;
             e.printStackTrace();
@@ -1627,6 +1671,8 @@ public class DeviceService extends Service implements FitrusServiceInterface {
                 // add headers <key,value>
                 headers.put("Accept", "application/json");
                 headers.put("Content-Type", "application/json");
+                headers.put("x-api-key", "vrmCquCRjqTKGQNt3b9pEYy6NhjOL45Mi3d56I16RGTuCAeDNXW53kDaJGn7KUii5SAnHAdtcNoIlnJUk5M5HIj3mJpKAzsIIDilz0bKwdIekWot5X1KyCBMUXBGmICS");
+
                 return headers;
             }
 
@@ -1747,86 +1793,151 @@ public class DeviceService extends Service implements FitrusServiceInterface {
 //        });
     }
 
+
     private void saveReultValue(JSONObject response) {
         try {
-            JSONObject jsonObject = response;
-            double date;
+            // Assumed class fields already set:
+            // this.height (cm), this.weight (kg), this.version, this.connectName, this.commandType, this.isStress
+            double weight = this.weight;
+            double heightCm = this.height;
+            double heightM = (heightCm > 0) ? (heightCm / 100.0) : 0.0;
+
+            // ---- Resolve measurement date ----
+            double measureDateMs = System.currentTimeMillis();
+            if (response.has("createdAt")) {
+                String createdAt = response.optString("createdAt", null);
+                if (createdAt != null) {
+                    // Try java.time first (API 26+), then SimpleDateFormat
+                    try {
+                        long epochMs = java.time.Instant.parse(createdAt).toEpochMilli();
+                        measureDateMs = (double) epochMs;
+                    } catch (Throwable t1) {
+                        try {
+                            // Example: 2025-10-02T08:17:54.541+00:00
+                            java.text.SimpleDateFormat sdf =
+                                    new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.US);
+                            java.util.Date d = sdf.parse(createdAt);
+                            if (d != null) measureDateMs = (double) d.getTime();
+                        } catch (Throwable ignored) { /* keep now() */ }
+                    }
+                }
+            } else if (response.has("date")) {
+                double dateRaw = response.optDouble("date", System.currentTimeMillis());
+                // If it's likely seconds, convert to ms
+                measureDateMs = (dateRaw < 3.2e10) ? dateRaw * 1000.0 : dateRaw;
+            }
+
             if (this.commandType.equals("BFP")) {
-                date = jsonObject.getDouble("date");
-                String device = jsonObject.getString("device");
-                double bfp = jsonObject.getDouble("bfp");
-                double bfm = jsonObject.getDouble("bfm");
-                double smm = jsonObject.getDouble("smm");
-                double bmr = jsonObject.getDouble("bmr");
-                double bmi = jsonObject.getDouble("bmi");
-                double bwp = jsonObject.getDouble("bwp");
-                double calorie = jsonObject.getDouble("calorie");
-                double protein = jsonObject.getDouble("protein");
-                double minerals = jsonObject.getDouble("minerals");
-                this.mBody.measureDate = date;
-                this.mBody.bmi = bmi;
-                this.mBody.bmr = bmr;
-                this.mBody.fatMass = bfm;
-                this.mBody.waterPercentage = bwp;
-                this.mBody.fatPercentage = bfp;
-                this.mBody.muscleMass = smm;
-                this.mBody.calorie = calorie;
-                this.mBody.minerals = minerals;
-                this.mBody.protein = protein;
+                // ---- Read core numbers with fallbacks ----
+                double bfp     = response.optDouble("bfp", Double.NaN);
+                bfp=roundValues(bfp,2);
+
+                double bfm     = response.optDouble("bfm", Double.NaN);
+                bfm=roundValues(bfm,2);
+
+                double bmr     = response.optDouble("bmr", Double.NaN);
+                double smm     = response.optDouble("smm", Double.NaN);
+
+
+                // New API uses "mineral"; old API used "minerals"
+                double mineral = response.has("mineral")
+                        ? response.optDouble("mineral", Double.NaN)
+                        : response.optDouble("minerals", Double.NaN);
+
+                double protein = response.optDouble("protein", Double.NaN);
+
+                // BMI: prefer server "bmi", else compute locally
+                double bmi = response.has("bmi")
+                        ? response.optDouble("bmi", Double.NaN)
+                        : (heightM > 0 ? (weight / (heightM * heightM)) : Double.NaN);
+
+//                if (!Double.isNaN(bmi)) {
+//                    bmi = Math.round(bmi * 100.0) / 100.0; // keep 2 decimals
+//                }
+                bmi=roundValues(bmi,2);
+
+
+                // Water%: prefer "bwp"; else compute from icw+ecw if present
+                double bwp = Double.NaN;
+                if (response.has("bwp")) {
+                    bwp = response.optDouble("bwp", Double.NaN);
+                } else if (response.has("icw") || response.has("ecw")) {
+                    double icw = response.optDouble("icw", 0.0);
+                    double ecw = response.optDouble("ecw", 0.0);
+                    if (weight > 0.0) {
+                        bwp = (icw + ecw) / weight * 100.0;
+                    }
+                }
+//                if (!Double.isNaN(bwp)) {
+//                    bwp = Math.round(bwp * 100.0) / 100.0; // round to 2 decimals
+//                }
+
+                bwp=roundValues(bwp,2);
+
+
+                // Calorie: if not provided, use BMR as a reasonable fallback
+                double calorie = response.has("calorie")
+                        ? response.optDouble("calorie", Double.NaN)
+                        : bmr;
+
+                // ---- Assign to model safely (skip NaN values) ----
+                this.mBody.measureDate = measureDateMs;
+                if (!Double.isNaN(bmi))     this.mBody.bmi = bmi;
+                if (!Double.isNaN(bmr))     this.mBody.bmr = bmr;
+                if (!Double.isNaN(bfm))     this.mBody.fatMass = bfm;
+                if (!Double.isNaN(bwp))     this.mBody.waterPercentage = bwp;
+                if (!Double.isNaN(bfp))     this.mBody.fatPercentage = bfp;
+                if (!Double.isNaN(smm))     this.mBody.muscleMass = smm;
+                if (!Double.isNaN(calorie)) this.mBody.calorie = calorie;
+                if (!Double.isNaN(mineral)) this.mBody.minerals = mineral;
+                if (!Double.isNaN(protein)) this.mBody.protein = protein;
+
                 this.mBody.result = FitrusLtResultData.RESULT.SUCCESS;
                 this.mBody.deviceName = this.getConnDeviceName(this.connectName);
                 this.mBody.firmwareVersion = Float.parseFloat(this.version);
-            } else if (!this.commandType.equals("HRV") && !this.commandType.equals("STRESS")) {
-                double temp;
-                if (!this.commandType.equals("TEMP_S") && !this.commandType.equals("TEMP_O")) {
-                    if (this.commandType.equals("BP")) {
-                        date = (double)(new Date()).getTime();
-                        temp = (double)jsonObject.getInt("dbpPredictMean");
-                        double sbp = (double)jsonObject.getInt("sbpPredictMean");
-                        this.mBP.result = FitrusLtResultData.RESULT.SUCCESS;
-                        this.mBP.measureDate = date;
-                        this.mBP.dbp = temp;
-                        this.mBP.sbp = sbp;
-                        this.mBP.deviceName = this.getConnDeviceName(this.connectName);
-                        this.mBP.firmwareVersion = Float.parseFloat(this.version);
-                    }
-                } else {
-                    date = jsonObject.getDouble("date");
-                    temp = jsonObject.getDouble("temp");
-                    this.mTemperature.result = FitrusLtResultData.RESULT.SUCCESS;
-                    this.mTemperature.measureDate = date;
-                    if (this.commandType.equals("TEMP_S")) {
-                        this.mTemperature.type = "SKIN";
-                    } else {
-                        this.mTemperature.type = "OBJECT";
-                    }
 
-                    this.mTemperature.value = temp;
+            } else if (!this.commandType.equals("HRV") && !this.commandType.equals("STRESS")) {
+                // ---- BP / TEMP flows ----
+                if (this.commandType.equals("BP")) {
+                    double dbp = response.optDouble("dbpPredictMean", Double.NaN);
+                    double sbp = response.optDouble("sbpPredictMean", Double.NaN);
+
+                    this.mBP.result = FitrusLtResultData.RESULT.SUCCESS;
+                    this.mBP.measureDate = measureDateMs;
+                    if (!Double.isNaN(dbp)) this.mBP.dbp = dbp;
+                    if (!Double.isNaN(sbp)) this.mBP.sbp = sbp;
+                    this.mBP.deviceName = this.getConnDeviceName(this.connectName);
+                    this.mBP.firmwareVersion = Float.parseFloat(this.version);
+
+                } else if (this.commandType.equals("TEMP_S") || this.commandType.equals("TEMP_O")) {
+                    double temp = response.optDouble("temp", Double.NaN);
+
+                    this.mTemperature.result = FitrusLtResultData.RESULT.SUCCESS;
+                    this.mTemperature.measureDate = measureDateMs;
+                    this.mTemperature.type = this.commandType.equals("TEMP_S") ? "SKIN" : "OBJECT";
+                    if (!Double.isNaN(temp)) this.mTemperature.value = temp;
                     this.mTemperature.deviceName = this.getConnDeviceName(this.connectName);
                     this.mTemperature.firmwareVersion = Float.parseFloat(this.version);
                 }
+
             } else {
-                date = jsonObject.getDouble("date");
-                int oxygen = jsonObject.getInt("oxygen");
-                int bpm = jsonObject.getInt("bpm");
-                String device = "";
-                String stressLevel = "";
-                int stressValue = 0;
-                if (this.isStress) {
-                    device = jsonObject.getString("device");
-                    stressLevel = jsonObject.getString("stressLevel");
-                    stressValue = jsonObject.getInt("stressValue");
-                }
+                // ---- HRV / STRESS ----
+                int oxygen = response.optInt("oxygen", -1);
+                int bpm = response.optInt("bpm", -1);
 
                 this.mHRV.result = FitrusLtResultData.RESULT.SUCCESS;
-                this.mHRV.measureDate = date;
-                this.mHRV.dSp02 = oxygen;
-                this.mHRV.dBPM = bpm;
+                this.mHRV.measureDate = measureDateMs;
+                if (oxygen >= 0) this.mHRV.dSp02 = oxygen;
+                if (bpm >= 0) this.mHRV.dBPM = bpm;
                 this.mHRV.deviceName = this.getConnDeviceName(this.connectName);
                 this.mHRV.firmwareVersion = Float.parseFloat(this.version);
+
                 if (this.isStress) {
+                    String stressLevel = response.optString("stressLevel", "");
+                    int stressValue = response.optInt("stressValue", 0);
+
                     this.mStress.result = FitrusLtResultData.RESULT.SUCCESS;
-                    this.mStress.measureDate = date;
+                    this.mStress.measureDate = measureDateMs;
                     this.mStress.dBPM = bpm;
                     this.mStress.dSp02 = oxygen;
                     this.mStress.StressLevel = stressLevel;
@@ -1835,12 +1946,116 @@ public class DeviceService extends Service implements FitrusServiceInterface {
                     this.mStress.firmwareVersion = Float.parseFloat(this.version);
                 }
             }
-        } catch (Exception var18) {
-            Exception e = var18;
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
+
+    public  double roundValues(double value, int places) {
+        if (Double.isNaN(value)) return Double.NaN;
+        if (places < 0) throw new IllegalArgumentException("Decimal places must be >= 0");
+
+        BigDecimal bd = new BigDecimal(Double.toString(value));
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+//    private void saveReultValue(JSONObject response) {
+//        try {
+//
+//            JSONObject jsonObject = response;
+//
+//            double date;
+//            if (this.commandType.equals("BFP")) {
+//                date = jsonObject.getDouble("date");
+//                String device = jsonObject.getString("device");
+//                double bfp = jsonObject.getDouble("bfp");
+//                double bfm = jsonObject.getDouble("bfm");
+//                double smm = jsonObject.getDouble("smm");
+//                double bmr = jsonObject.getDouble("bmr");
+//                double bmi = jsonObject.getDouble("bmi");
+//                double bwp = jsonObject.getDouble("bwp");
+//                double calorie = jsonObject.getDouble("calorie");
+//                double protein = jsonObject.getDouble("protein");
+//                double minerals = jsonObject.getDouble("minerals");
+//                this.mBody.measureDate = date;
+//                this.mBody.bmi = bmi;
+//                this.mBody.bmr = bmr;
+//                this.mBody.fatMass = bfm;
+//                this.mBody.waterPercentage = bwp;
+//                this.mBody.fatPercentage = bfp;
+//                this.mBody.muscleMass = smm;
+//                this.mBody.calorie = calorie;
+//                this.mBody.minerals = minerals;
+//                this.mBody.protein = protein;
+//                this.mBody.result = FitrusLtResultData.RESULT.SUCCESS;
+//                this.mBody.deviceName = this.getConnDeviceName(this.connectName);
+//                this.mBody.firmwareVersion = Float.parseFloat(this.version);
+//            } else if (!this.commandType.equals("HRV") && !this.commandType.equals("STRESS")) {
+//                double temp;
+//                if (!this.commandType.equals("TEMP_S") && !this.commandType.equals("TEMP_O")) {
+//                    if (this.commandType.equals("BP")) {
+//                        date = (double)(new Date()).getTime();
+//                        temp = (double)jsonObject.getInt("dbpPredictMean");
+//                        double sbp = (double)jsonObject.getInt("sbpPredictMean");
+//                        this.mBP.result = FitrusLtResultData.RESULT.SUCCESS;
+//                        this.mBP.measureDate = date;
+//                        this.mBP.dbp = temp;
+//                        this.mBP.sbp = sbp;
+//                        this.mBP.deviceName = this.getConnDeviceName(this.connectName);
+//                        this.mBP.firmwareVersion = Float.parseFloat(this.version);
+//                    }
+//                } else {
+//                    date = jsonObject.getDouble("date");
+//                    temp = jsonObject.getDouble("temp");
+//                    this.mTemperature.result = FitrusLtResultData.RESULT.SUCCESS;
+//                    this.mTemperature.measureDate = date;
+//                    if (this.commandType.equals("TEMP_S")) {
+//                        this.mTemperature.type = "SKIN";
+//                    } else {
+//                        this.mTemperature.type = "OBJECT";
+//                    }
+//
+//                    this.mTemperature.value = temp;
+//                    this.mTemperature.deviceName = this.getConnDeviceName(this.connectName);
+//                    this.mTemperature.firmwareVersion = Float.parseFloat(this.version);
+//                }
+//            } else {
+//                date = jsonObject.getDouble("date");
+//                int oxygen = jsonObject.getInt("oxygen");
+//                int bpm = jsonObject.getInt("bpm");
+//                String device = "";
+//                String stressLevel = "";
+//                int stressValue = 0;
+//                if (this.isStress) {
+//                    device = jsonObject.getString("device");
+//                    stressLevel = jsonObject.getString("stressLevel");
+//                    stressValue = jsonObject.getInt("stressValue");
+//                }
+//
+//                this.mHRV.result = FitrusLtResultData.RESULT.SUCCESS;
+//                this.mHRV.measureDate = date;
+//                this.mHRV.dSp02 = oxygen;
+//                this.mHRV.dBPM = bpm;
+//                this.mHRV.deviceName = this.getConnDeviceName(this.connectName);
+//                this.mHRV.firmwareVersion = Float.parseFloat(this.version);
+//                if (this.isStress) {
+//                    this.mStress.result = FitrusLtResultData.RESULT.SUCCESS;
+//                    this.mStress.measureDate = date;
+//                    this.mStress.dBPM = bpm;
+//                    this.mStress.dSp02 = oxygen;
+//                    this.mStress.StressLevel = stressLevel;
+//                    this.mStress.StressValue = stressValue;
+//                    this.mStress.deviceName = this.getConnDeviceName(this.connectName);
+//                    this.mStress.firmwareVersion = Float.parseFloat(this.version);
+//                }
+//            }
+//        } catch (Exception var18) {
+//            Exception e = var18;
+//            e.printStackTrace();
+//        }
+//
+//    }
 
     private String getConnDeviceName(String connectName) {
         String device;
