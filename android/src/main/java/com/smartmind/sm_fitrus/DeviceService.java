@@ -1628,6 +1628,7 @@ public class DeviceService extends Service implements FitrusServiceInterface {
             inputObject.put("bodyType", this.bodyType);
             inputObject.put("version", this.version);
 
+            Log.d("InputData", inputObject.toString());
 
 
         } catch (Exception var6) {
