@@ -60,7 +60,7 @@ Add `sm_fitrus` to your `pubspec.yaml`:
 ```yaml
 dependencies:
   sm_fitrus:
-    git: https://github.com/SmartMindSYSCoder/Fitrus-plugin.git
+    git: https://github.com/SmartMindSYSCoder/sm_fitrus.git
 ```
 
 ### 2. Implementation Logic
