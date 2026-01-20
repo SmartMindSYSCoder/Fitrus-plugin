@@ -78,15 +78,19 @@ smFitrus.getEvents().listen((data) {
 // 2. Request necessary runtime permissions
 await smFitrus.getPermissions();
 
-// 3. Initialize the plugin (API URL is optional/auto-handled)
+// 3. Initialize with your API Key
 await smFitrus.init(
   apiKey: 'YOUR_API_KEY_HERE'
 );
 ```
 
-### 3. Usage & Data Handling
+### 3. Usage Examples
 
-The plugin emits `FitrusModel` events via a stream. You can use a `StreamBuilder` to react to these updates.
+You can consume the data in two ways:
+
+#### Option A: Reactive UI (StreamBuilder)
+
+Perfect for building the UI directly from the data stream.
 
 ```dart
 StreamBuilder<FitrusModel>(
@@ -117,6 +121,29 @@ StreamBuilder<FitrusModel>(
     return Text("Status: ${data.rawConnectionState}");
   },
 );
+```
+
+#### Option B: Business Logic (Event Listener)
+
+Useful for state management (GetX, Bloc, Provider) or non-UI logic.
+
+```dart
+smFitrus.getEvents().listen((data) {
+  // Handle connection changes
+  if (data.connectionState == FitrusConnectionState.disconnected) {
+    print("Device disconnected");
+  }
+
+  // Handle measurement results
+  if (data.hasData && data.bodyFat != null) {
+    print("New Measurement Received:");
+    print("Body Fat: ${data.bodyFat?.fatPercentage}%");
+    print("Skeletal Muscle: ${data.bodyFat?.muscleMass}kg");
+    
+    // Save to database or update state controller
+    // myController.updateBodyFat(data.bodyFat);
+  }
+});
 ```
 
 ### 4. Starting a Measurement
