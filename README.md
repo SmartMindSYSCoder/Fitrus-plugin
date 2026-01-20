@@ -65,22 +65,25 @@ dependencies:
 
 ### 2. Implementation Logic
 
+> [!IMPORTANT]
+> **Request Permissions First**: Always request permissions **before** any other action. This ensures the plugin has all necessary Bluetooth and Location permissions to function correctly.
+
 > [!TIP]
-> **Best Practice**: Always set up your event listener **before** initializing the plugin. This ensures you capture all initial connection states and don't miss any events.
+> **Best Practice**: Set up your event listener **before** initializing the plugin. This ensures you capture all initial connection states and don't miss any events.
 
 ```dart
 final smFitrus = SmFitrus();
 
-// 1. First, set up the listener to handle streams
+// 1. First, request necessary runtime permissions
+await smFitrus.getPermissions();
+
+// 2. Set up the listener to handle streams
 smFitrus.getEvents().listen((data) {
   print("Connection State: ${data.connectionState}");
   if (data.hasData) {
     print("Body Fat: ${data.bodyFat?.fatPercentage}%");
   }
 });
-
-// 2. Request necessary runtime permissions
-await smFitrus.getPermissions();
 
 // 3. Initialize with your API Key
 await smFitrus.init(
