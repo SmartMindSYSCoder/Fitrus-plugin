@@ -18,6 +18,19 @@ This plugin requires the following permissions to be granted at runtime:
 - `BLUETOOTH_CONNECT`
 - `ACCESS_FINE_LOCATION` (Required for BLE scanning on Android 11 and below)
 
+Add the following to your `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!-- Android 12+ -->
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+```
+
 **Important**: 
 - **Internet Connection** is required for the device to calculate body composition analysis via the Fitrus API.
 - **Bluetooth** must be enabled on the device.
@@ -45,7 +58,6 @@ import 'package:sm_fitrus/sm_fitrus.dart';
 final smFitrus = SmFitrus();
 
 // Initialize with your API Key
-// Note: API URL is no longer required and defaults to the standard Fitrus API.
 await smFitrus.init(
   apiKey: 'YOUR_API_KEY_HERE'
 );
@@ -65,14 +77,14 @@ StreamBuilder<FitrusModel>(
   builder: (context, snapshot) {
     if (!snapshot.hasData) return Text("Waiting...");
     
-    final state = snapshot.data!;
+    final data = snapshot.data!;
     
-    if (state.connectionState == FitrusConnectionState.connected) {
+    if (data.connectionState == FitrusConnectionState.connected) {
       return Text("Connected!");
     }
     
-    if (state.hasData && state.bodyFat != null) {
-      final bodyFat = state.bodyFat!;
+    if (data.hasData && data.bodyFat != null) {
+      final bodyFat = data.bodyFat!;
       return Column(children: [
         Text("Body Fat: ${bodyFat.fatPercentage}%"),
         Text("Muscle Mass: ${bodyFat.muscleMass} kg"),
@@ -82,7 +94,7 @@ StreamBuilder<FitrusModel>(
       ]);
     }
     
-    return Text("Status: ${state.rawConnectionState}");
+    return Text("Status: ${data.rawConnectionState}");
   },
 );
 ```
