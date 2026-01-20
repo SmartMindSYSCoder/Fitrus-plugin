@@ -1,44 +1,57 @@
 # sm_fitrus
 
-A Flutter plugin for the Fitrus Body Composition device.
+[![Pub Version](https://img.shields.io/pub/v/sm_fitrus)](https://pub.dev/packages/sm_fitrus)
+[![Flutter Platform](https://img.shields.io/badge/Platform-Flutter-02569B?logo=flutter)](https://flutter.dev)
 
-## Features
+A professional Flutter plugin for integrating with the **Fitrus** Body Composition device.
 
-- **Connect** to Fitrus devices via BLE.
-- **Measure** Body Fat Percentage (BFP), Skeletal Muscle Mass, Basal Metabolic Rate (BMR), and more.
-- **Calculate** BMI and Water Percentage automatically (even if the device API doesn't return them).
-- **Stream** real-time connection status and measurement progress.
+This plugin provides a seamless way to connect to Fitrus devices via BLE, measure various body metrics, and receive real-time data streams.
 
-## Prerequisites
+---
+
+## 🚀 Features
+
+- **BLE Connectivity**: Reliable connection management (scan, connect, disconnect).
+- **Comprehensive Analysis**: Measure BFP, Muscle Mass, BMR, BMI, Water %, Minerals, and more.
+- **Smart Calculations**: Auto-calculates derived metrics (BMI, Water %) if missing from the API.
+- **Robust Persistence**: Persists measurement results even during temporary connection drops.
+- **Real-time Streams**: Live updates for connection state and measurement progress.
+
+---
+
+## 📋 Prerequisites
 
 ### Android
 
-This plugin requires the following permissions to be granted at runtime:
-- `BLUETOOTH_SCAN`
-- `BLUETOOTH_CONNECT`
-- `ACCESS_FINE_LOCATION` (Required for BLE scanning on Android 11 and below)
+This plugin requires specific permissions for Bluetooth and Location (needed for scanning on older Android versions).
 
 Add the following to your `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
+<!-- Bluetooth Permissions -->
 <uses-permission android:name="android.permission.BLUETOOTH" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+<!-- Location (Required for BLE scanning on Android 11 and below) -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-<!-- Android 12+ -->
+<!-- Android 12+ (Target SDK 31+) -->
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 ```
 
-**Important**: 
-- **Internet Connection** is required for the device to calculate body composition analysis via the Fitrus API.
-- **Bluetooth** must be enabled on the device.
-- **Location Services** (GPS) must be enabled for scanning to work on Android.
+> [!IMPORTANT]
+> - **Internet Connection**: Required for the Fitrus API to calculate body composition.
+> - **GPS**: Must be enabled on Android for BLE scanning to function.
 
-## Getting Started
+---
 
-1. **Add dependency** to your `pubspec.yaml`:
+## 🛠 Getting Started
+
+### 1. Installation
+
+Add `sm_fitrus` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -46,79 +59,95 @@ dependencies:
     git: https://github.com/SmartMindSYSCoder/Fitrus-plugin.git
 ```
 
-2. **Import** the package:
+### 2. Implementation Logic
 
-```dart
-import 'package:sm_fitrus/sm_fitrus.dart';
-```
-
-3. **Initialize** the plugin with your API Key:
+> [!TIP]
+> **Best Practice**: Always set up your event listener **before** initializing the plugin. This ensures you capture all initial connection states and don't miss any events.
 
 ```dart
 final smFitrus = SmFitrus();
 
-// Initialize with your API Key
+// 1. First, set up the listener to handle streams
+smFitrus.getEvents().listen((data) {
+  print("Connection State: ${data.connectionState}");
+  if (data.hasData) {
+    print("Body Fat: ${data.bodyFat?.fatPercentage}%");
+  }
+});
+
+// 2. Request necessary runtime permissions
+await smFitrus.getPermissions();
+
+// 3. Initialize the plugin (API URL is optional/auto-handled)
 await smFitrus.init(
   apiKey: 'YOUR_API_KEY_HERE'
 );
 ```
 
-4. **Request Permissions**:
+### 3. Usage & Data Handling
 
-```dart
-await smFitrus.getPermissions();
-```
-
-5. **Listen for Events** (Connection State & Results):
+The plugin emits `FitrusModel` events via a stream. You can use a `StreamBuilder` to react to these updates.
 
 ```dart
 StreamBuilder<FitrusModel>(
   stream: smFitrus.getEvents(),
   builder: (context, snapshot) {
-    if (!snapshot.hasData) return Text("Waiting...");
+    if (!snapshot.hasData) return Text("Waiting for connection...");
     
     final data = snapshot.data!;
     
+    // 1. Check Connection State
     if (data.connectionState == FitrusConnectionState.connected) {
-      return Text("Connected!");
+      return Text("Connected! Ready to measure.");
     }
     
+    // 2. Display Results
     if (data.hasData && data.bodyFat != null) {
       final bodyFat = data.bodyFat!;
       return Column(children: [
-        Text("Body Fat: ${bodyFat.fatPercentage}%"),
-        Text("Muscle Mass: ${bodyFat.muscleMass} kg"),
-        Text("BMI: ${bodyFat.bmi}"),
-        Text("Water: ${bodyFat.waterPercentage}%"),
-        Text("Minerals: ${bodyFat.minerals} kg"),
+        _buildMetric("Body Fat", "${bodyFat.fatPercentage}%"),
+        _buildMetric("Muscle Mass", "${bodyFat.muscleMass} kg"),
+        _buildMetric("BMI", "${bodyFat.bmi}"),
+        _buildMetric("Water", "${bodyFat.waterPercentage}%"),
+        _buildMetric("Minerals", "${bodyFat.minerals} kg"),
       ]);
     }
     
+    // 3. Fallback Status
     return Text("Status: ${data.rawConnectionState}");
   },
 );
 ```
 
-6. **Start Measurement**:
+### 4. Starting a Measurement
 
-Once connected (status is `Service Discovered`), you can start a measurement.
+Once the connection status is **Service Discovered**, you can trigger a measurement.
 
 ```dart
 await smFitrus.startBFP(
   heightCm: 175.0,
   weightKg: 70.0,
   gender: FitrusGender.male, // or FitrusGender.female
-  birth: '19950101', // Format: yyyyMMdd
+  birth: '19950101',         // Format: yyyyMMdd
 );
 ```
 
-## Data Model
+---
 
-The `FitrusModel` provides:
-- `connectionState`: Current status (scanning, connected, disconnected, etc.)
-- `progress`: Measurement progress (0-100%)
-- `bodyFat`: The result object containing:
-    - `fatPercentage`, `fatMass`, `muscleMass`
-    - `bmi`, `bmr`
-    - `waterPercentage`, `minerals`, `protein`
-    - `icw` (Intracellular Water), `ecw` (Extracellular Water) 
+## 📊 Data Model
+
+The `FitrusModel` object contains all necessary information:
+
+- **`connectionState`**: (Enum) Current status (`scanning`, `connected`, `disconnected`, etc.)
+- **`progress`**: (Int) Measurement progress (0-100%).
+- **`bodyFat`**: (Object) The comprehensive result data:
+    - `fatPercentage (%)`
+    - `fatMass (kg)`
+    - `muscleMass (kg)`
+    - `bmi`
+    - `bmr (kcal)`
+    - `waterPercentage (%)`
+    - `minerals (kg)`
+    - `protein (kg)`
+    - `icw` (Intracellular Water)
+    - `ecw` (Extracellular Water) 
