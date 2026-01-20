@@ -28,6 +28,10 @@ This plugin requires specific permissions for Bluetooth and Location (needed for
 Add the following to your `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
+<!-- Internet & Network (Required for API access) -->
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
 <!-- Bluetooth Permissions -->
 <uses-permission android:name="android.permission.BLUETOOTH" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
