@@ -52,6 +52,9 @@ public interface FitrusServiceInterface extends DeviceServiceInterface {
     int SEND_SET_PARAM_RANGE_ERROR = 1;
     int SEND_SET_PARAM_NULL = 2;
 
+    // API Configuration
+    void setApiConfig(String apiUrl, String apiKey);
+
     IntentFilter getGattUpdateIntentFilter();
 
     boolean startFitrusScan(int var1, int var2);

@@ -1,152 +1,49 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:sm_fitrus/fitrus_model.dart';
-import 'package:sm_fitrus/sm_fitrus.dart';
+import 'theme/app_theme.dart';
+import 'screens/home_screen.dart';
+
+const String kFitrusApiKey =
+    'vrmCquCRjqTKGQNt3b9pEYy6NhjOL45Mi3d56I16RGTuCAeDNXW53kDaJGn7KUii5SAnHAdtcNoIlnJUk5M5HIj3mJpKAzsIIDilz0bKwdIekWot5X1KyCBMUXBGmICS'; // TODO: Enter your API Key here
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const FitrusApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+/// Fitrus Example App
+///
+/// This app demonstrates the sm_fitrus plugin with a modern UI.
+/// Supports both Light and Dark modes.
+class FitrusApp extends StatefulWidget {
+  const FitrusApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<FitrusApp> createState() => _FitrusAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  final smFitrus = SmFitrus();
+class _FitrusAppState extends State<FitrusApp> {
+  // Default to dark mode
+  ThemeMode _themeMode = ThemeMode.dark;
 
-  FitrusModel fitrusModel = FitrusModel(bodyFat: BodyFat());
-  String state = "", result = '';
-  @override
-  void initState() {
-    super.initState();
-
-// smFitrus.init();
+  void _toggleTheme() {
+    setState(() {
+      _themeMode =
+          _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    });
   }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Fitrus Body Composition',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin SmartMind Fitrus'),
-        ),
-        body: Center(
-          child: Column(
-            children: [
-              SizedBox(
-                height: 30,
-              ),
-              TextButton(
-                  onPressed: () {
-                    smFitrus.getPermissions();
-                  },
-                  child: Text("Get Permissions")),
-              SizedBox(
-                height: 30,
-              ),
-
-              Text(result.toString()),
-              SizedBox(
-                height: 10,
-              ),
-              // StreamBuilder(
-              //     stream: smFitrus.getEvents(),
-              //     builder: (bc, event) {
-              //       return Column(
-              //         children: [Text(event.data.toString())],
-              //       );
-              //     }),
-              TextButton(
-                  onPressed: () async {
-                    smFitrus.init();
-
-                    await Future.delayed(Duration(seconds: 2));
-                    smFitrus.getEvents().listen((event) {
-                      var data = jsonDecode(event);
-
-                      result = data.toString();
-
-                      print('from   main *************************   $data');
-                      fitrusModel = FitrusModel(
-                          hasData: data['hasData'] ?? false,
-                          hasProgress: data['hasProgress'] ?? false,
-                          isConnected: data['connectState'] != null &&
-                                  data['connectState']
-                                      .toString()
-                                      .toLowerCase()
-                                      .contains("data") ||
-                              ['Connected', 'Service Discovered']
-                                  .contains(data['connectState'].toString()),
-                          connectionState: data['connectState'] ?? "",
-                          progress: data['progress'] != null
-                              ? data['progress'].toString()
-                              : "",
-                          bodyFat: BodyFat(
-                            bmi: double.tryParse(data['bmi'].toString()) ?? 0.0,
-                            bmr: double.tryParse(data['bmr'].toString()) ?? 0.0,
-                            waterPercentage: double.tryParse(
-                                    data['waterPercentage'].toString()) ??
-                                0.0,
-                            fatMass:
-                                double.tryParse(data['fatMass'].toString()) ??
-                                    0.0,
-                            fatPercentage: double.tryParse(
-                                    data['fatPercentage'].toString()) ??
-                                0.0,
-                            muscleMass: double.tryParse(
-                                    data['muscleMass'].toString()) ??
-                                0.0,
-                            protein:
-                                double.tryParse(data['protein'].toString()) ??
-                                    0.0,
-                            calorie:
-                                double.tryParse(data['calorie'].toString()) ??
-                                    0.0,
-                            minerals:
-                                double.tryParse(data['minerals'].toString()) ??
-                                    0.0,
-                          ));
-
-                      setState(() {});
-
-                      if (event.contains("bmi")) {
-                        smFitrus.dispose();
-                      }
-                    });
-                  },
-                  child: Text("Init")),
-              TextButton(
-                  onPressed: () async {
-                    // 'gender' must be 'M' or 'F'
-                    // 'birth'  must be like yyyyMMdd format ex:199901203
-                    await smFitrus.startBFP(
-                        height: 165,
-                        weight: 55.5,
-                        gender: "M",
-                        birth: '19901203');
-                  },
-                  child: Text("startBFP")),
-              Text("Connection State:\t${fitrusModel.connectionState}"
-                  "\nisConnected : \t${fitrusModel.isConnected}"
-                  ""),
-              Text("Progress Value:\t${fitrusModel.progress}"),
-              Text("Data:"
-                  ""
-                  ""
-                  "\nBMI:${fitrusModel.bodyFat!.bmi}"
-                  "\nBMR:${fitrusModel.bodyFat!.bmr}"),
-            ],
-          ),
-        ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: _themeMode,
+      home: HomeScreen(
+        apiKey: kFitrusApiKey,
+        onToggleTheme: _toggleTheme,
+        isDarkMode: _themeMode == ThemeMode.dark,
       ),
     );
   }

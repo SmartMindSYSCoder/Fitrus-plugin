@@ -11,6 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
+  fluttertoast: ^9.0.0
+  connectivity_plus: ^7.0.0
+  flutter_blue_plus: ^2.1.0
 
 dev_dependencies:
   flutter_test:

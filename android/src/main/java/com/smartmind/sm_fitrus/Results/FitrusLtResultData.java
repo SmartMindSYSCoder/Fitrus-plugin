@@ -107,6 +107,8 @@ public class FitrusLtResultData {
         public double bmi;
         public double bmr;
         public double waterPercentage;
+        public double icw;
+        public double ecw;
         public double protein;
         public double minerals;
         public double calorie;
