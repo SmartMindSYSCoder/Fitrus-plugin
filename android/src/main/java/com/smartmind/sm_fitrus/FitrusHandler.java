@@ -118,7 +118,10 @@ public class FitrusHandler implements EventChannel.StreamHandler {
         
         // If already ready, return immediately
         if ("Service Discovered".equals(connectState) || "Connected".equals(connectState)) {
-             Log.d(TAG, "Already connected/ready. Returning true immediately.");
+             Log.d(TAG, "Already connected/ready. Updating API config and returning true.");
+             if (mFitLtServiceInterface != null) {
+                 mFitLtServiceInterface.setApiConfig(pendingApiUrl, pendingApiKey);
+             }
              if (pendingInitResult != null) {
                  pendingInitResult.success(true);
                  pendingInitResult = null;
