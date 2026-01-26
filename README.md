@@ -69,7 +69,7 @@ dependencies:
 > **Request Permissions First**: Always request permissions **before** any other action. This ensures the plugin has all necessary Bluetooth and Location permissions to function correctly.
 
 > [!TIP]
-> **Best Practice**: Set up your event listener **before** initializing the plugin. This ensures you capture all initial connection states and don't miss any events.
+> **Unified Flow**: The new `measureBFP` method handles everything (Initialisation -> Scan -> Connect -> Measure) in a single call. You don't need to manually manage connections anymore.
 
 ```dart
 final smFitrus = SmFitrus();
@@ -85,9 +85,14 @@ smFitrus.getEvents().listen((data) {
   }
 });
 
-// 3. Initialize with your API Key
-await smFitrus.init(
-  apiKey: 'YOUR_API_KEY_HERE'
+// 3. Start Measurement (Unified Flow)
+// This will Initialise -> Scan -> Connect -> Measure automatically
+await smFitrus.measureBFP(
+  apiKey: 'YOUR_API_KEY_HERE',
+  heightCm: 175.0,
+  weightKg: 70.0,
+  gender: FitrusGender.male,
+  dob: DateTime(1995, 1, 1),
 );
 ```
 
@@ -130,40 +135,20 @@ StreamBuilder<FitrusModel>(
 );
 ```
 
-#### Option B: Business Logic (Event Listener)
+### 4. Advanced Control
 
-Useful for state management (GetX, Bloc, Provider) or non-UI logic.
+#### Cancel Measurement
+To stop an ongoing measurement completely (disconnects and resets device):
 
 ```dart
-smFitrus.getEvents().listen((data) {
-  // Handle connection changes
-  if (data.connectionState == FitrusConnectionState.disconnected) {
-    print("Device disconnected");
-  }
-
-  // Handle measurement results
-  if (data.hasData && data.bodyFat != null) {
-    print("New Measurement Received:");
-    print("Body Fat: ${data.bodyFat?.fatPercentage}%");
-    print("Skeletal Muscle: ${data.bodyFat?.muscleMass}kg");
-    
-    // Save to database or update state controller
-    // myController.updateBodyFat(data.bodyFat);
-  }
-});
+await smFitrus.cancelMeasurement();
 ```
 
-### 4. Starting a Measurement
-
-Once the connection status is **Service Discovered**, you can trigger a measurement.
+#### Power Off Device
+To explicitly disconnect and trigger the device's auto-shutdown:
 
 ```dart
-await smFitrus.startBFP(
-  heightCm: 175.0,
-  weightKg: 70.0,
-  gender: FitrusGender.male, // or FitrusGender.female
-  birth: '19950101',         // Format: yyyyMMdd
-);
+await smFitrus.powerOff();
 ```
 
 ---

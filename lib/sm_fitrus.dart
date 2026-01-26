@@ -7,7 +7,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'fitrus_model.dart';
 export 'fitrus_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Fitrus Gender Enum
@@ -150,145 +149,6 @@ class SmFitrus {
     }
   }
 
-  /// **[DEPRECATED]** Use [measureBFP] instead for a simplified one-shot API.
-  ///
-  /// Initializes the Fitrus plugin.
-  ///
-  /// **Required parameters:**
-  /// - [apiKey] The API key for authentication.
-  ///
-  /// **Validation:**
-  /// - Returns false and shows toast if Bluetooth is not enabled.
-  /// - Returns false and shows toast if Internet is not connected.
-  /// - Returns false and shows toast if apiKey is empty.
-  Future<bool> init({
-    required String apiKey,
-  }) async {
-    // Validate apiKey
-    if (apiKey.isEmpty) {
-      _showToast('API Key is required');
-      debugPrint('SmFitrus: init() failed - API Key is required');
-      return false;
-    }
-
-    // Validate Bluetooth
-    try {
-      final isBluetoothOn = await FlutterBluePlus.adapterState.first;
-      if (isBluetoothOn != BluetoothAdapterState.on) {
-        _showToast('Bluetooth is not enabled. Please enable Bluetooth.');
-        debugPrint('SmFitrus: init() failed - Bluetooth not enabled');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('SmFitrus: Failed to check Bluetooth state: $e');
-      // Continue anyway, native side will also check
-    }
-
-    // Validate Internet
-    try {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
-        _showToast('Internet connection is required');
-        debugPrint('SmFitrus: init() failed - No internet connection');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('SmFitrus: Failed to check connectivity: $e');
-      // Continue anyway, native side will also check
-    }
-
-    // All validations passed - call native init
-    try {
-      final Map<String, String> args = {
-        'apiKey': apiKey,
-      };
-      await _methodChannel.invokeMethod('init', args);
-      return true;
-    } on PlatformException catch (e) {
-      _showToast('Failed to initialize: ${e.message}');
-      debugPrint("Failed to initialize Fitrus: '${e.message}'.");
-      return false;
-    }
-  }
-
-  Future<void> dispose() async {
-    try {
-      await _methodChannel.invokeMethod('dispose');
-    } on PlatformException catch (e) {
-      debugPrint("Failed to dispose Fitrus: '${e.message}'.");
-    }
-  }
-
-  /// **[DEPRECATED]** Use [measureBFP] instead for a simplified one-shot API.
-  ///
-  /// Starts Body Fat Percentage (BFP) measurement.
-  ///
-  /// **Required parameters:**
-  /// - [heightCm] Height in centimeters (must be > 0).
-  /// - [weightKg] Weight in kilograms (must be > 0).
-  /// - [gender] Gender (male or female).
-  /// - [birth] Birth date in 'yyyyMMdd' format (e.g., '19991203').
-  ///
-  /// **Validation:**
-  /// - Returns false and shows toast if any parameter is invalid.
-  @Deprecated('Use measureBFP() for a simplified one-shot API')
-  Future<bool> startBFP({
-    required double heightCm,
-    required double weightKg,
-    required FitrusGender gender,
-    required String birth,
-  }) async {
-    // Note: This method requires init() to be called first
-    // For automatic init + measure, use measureBFP() instead
-
-    // Validate using shared helper (without apiKey check since init handles that)
-    if (heightCm <= 0 || heightCm > 300) {
-      _showToast('Invalid height. Must be between 1 and 300 cm.');
-      debugPrint('SmFitrus: startBFP() failed - Invalid height: $heightCm');
-      return false;
-    }
-
-    if (weightKg <= 0 || weightKg > 500) {
-      _showToast('Invalid weight. Must be between 1 and 500 kg.');
-      debugPrint('SmFitrus: startBFP() failed - Invalid weight: $weightKg');
-      return false;
-    }
-
-    if (birth.length != 8 || int.tryParse(birth) == null) {
-      _showToast('Invalid birth date. Use yyyyMMdd format (e.g., 19901203)');
-      debugPrint('SmFitrus: startBFP() failed - Invalid birth: $birth');
-      return false;
-    }
-
-    // All validations passed - call native startBFP
-    final Map<String, String> args = {
-      'height': heightCm.toStringAsFixed(1),
-      'weight': weightKg.toStringAsFixed(1),
-      'gender': gender.toApiFormat(),
-      'birth': birth,
-    };
-
-    try {
-      await _methodChannel.invokeMethod('startBFP', args);
-      return true;
-    } on PlatformException catch (e) {
-      _showToast('Failed to start measurement: ${e.message}');
-      debugPrint("Failed to start BFP measurement: '${e.message}'.");
-      return false;
-    }
-  }
-
-  /// Stops Body Fat Percentage (BFP) measurement.
-  ///
-  /// Use this to manually stop an ongoing measurement.
-  Future<void> stopBFP() async {
-    try {
-      await _methodChannel.invokeMethod('stopBFP');
-    } on PlatformException catch (e) {
-      debugPrint("Failed to stop BFP: '${e.message}'.");
-    }
-  }
-
   /// Cancels an ongoing measurement.
   ///
   /// This sends a 0.0 result to the device (to stop it) and disposes the service connection.
@@ -297,19 +157,6 @@ class SmFitrus {
       await _methodChannel.invokeMethod('cancelMeasurement');
     } on PlatformException catch (e) {
       debugPrint("Failed to cancel measurement: '${e.message}'.");
-    }
-  }
-
-  /// Sends a BFP result to the device (used for finishing or canceling measurement).
-  ///
-  /// Sends a BFP result to the device (used for finishing or canceling measurement).
-  ///
-  /// Sending 0.0 may trigger device power-off depending on firmware.
-  Future<void> sendBFPResult(double result) async {
-    try {
-      await _methodChannel.invokeMethod('sendBFPResult', {'result': result});
-    } on PlatformException catch (e) {
-      debugPrint("Failed to send BFP result: '${e.message}'.");
     }
   }
 

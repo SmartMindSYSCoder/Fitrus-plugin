@@ -74,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _subscription?.cancel();
-    _smFitrus.dispose();
     super.dispose();
   }
 
