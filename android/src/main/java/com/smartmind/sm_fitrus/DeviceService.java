@@ -327,6 +327,8 @@ public class DeviceService extends Service implements FitrusServiceInterface {
 
     @Override
     public void stopBFP() {
+        Log.i(TAG, "stopBFP: Manual stop requested");
+        handleBfpError(null);
         executorService.execute(() -> sendFitrusDevice(FitrusConstants.SERVICE_UUID_STRING, FitrusConstants.CMD_BFP_STOP.getBytes()));
     }
 
@@ -986,7 +988,6 @@ public class DeviceService extends Service implements FitrusServiceInterface {
     private void sendToServerBfp(Double value) {
         RequestQueue requestQueue = Volley.newRequestQueue(this);
         String postUrl = this.apiUrl;  // Use configured URL
-        Log.d(TAG, "sendToServerBfp: Using API URL: " + postUrl);
         JSONObject inputObject = new JSONObject();
         try {
             int age = 0;
@@ -1031,14 +1032,7 @@ public class DeviceService extends Service implements FitrusServiceInterface {
                          errorMsg += " - " + error.getMessage();
                      }
                      Log.e(TAG, "API Error occurred: " + errorMsg);
-                     sendLocalbroadcast("ERROR", connectName, errorMsg);
-                     
-                     // Send 0.0 as error indicator to signal device to power down
-                     Log.e(TAG, "Sending BFP Result 0.0 to signal device power-down");
-                     sendBFPResult(0.0);
-                     
-                     commandType = FitrusConstants.TYPE_NONE;
-                     isResulting = false;
+                     handleBfpError(errorMsg);
                 }
         ) {
             @Override
@@ -1054,6 +1048,19 @@ public class DeviceService extends Service implements FitrusServiceInterface {
             }
         };
         requestQueue.add(jsonObjectRequest);
+    }
+
+    private void handleBfpError(String errorMsg) {
+        if (errorMsg != null) {
+            sendLocalbroadcast("ERROR", connectName, errorMsg);
+        }
+        
+        // Signal device to power down
+        sendBFPResult(0.0);
+        
+        // Reset state so new measurements can be started immediately
+        this.commandType = FitrusConstants.TYPE_NONE;
+        this.isResulting = false;
     }
     
     private void sendToServerPpg() {
@@ -1130,18 +1137,32 @@ public class DeviceService extends Service implements FitrusServiceInterface {
         }
     }
     
-     private void sendBFPResult(final Double result) {
-         if (result != null) {
-             String command = String.format(Locale.US, "*BFP:Result=%1$.1f#\r\n", result);
-             Log.e(TAG, "sendBFPResult: Sending command to device: " + command.trim());
-             executorService.execute(() -> {
-                 Log.e(TAG, "sendBFPResult: Executing sendFitrusDevice now");
-                 sendFitrusDevice(FitrusConstants.SERVICE_UUID_STRING, command.getBytes());
-             });
-         } else {
-             Log.e(TAG, "sendBFPResult: Result is null, not sending");
+     @Override
+     public void sendBFPResult(final double result) {
+         String command = String.format(Locale.US, "*BFP:Result=%1$.1f#\r\n", result);
+         Log.e(TAG, "sendBFPResult: Sending command to device: " + command.trim());
+         executorService.execute(() -> {
+             Log.e(TAG, "sendBFPResult: Executing sendFitrusDevice now");
+             sendFitrusDevice(FitrusConstants.SERVICE_UUID_STRING, command.getBytes());
+         });
+
+         // If the result is 0.0, it represents a cancellation/power-down signal.
+         // We reset the state here to ensure the logic and hardware are in sync.
+         if (result == 0.0) {
+             this.commandType = FitrusConstants.TYPE_NONE;
+             this.isResulting = false;
+             
+             // Reset progress state
+             this.mDeviceProgress = 0;
+             this.mProgress.progressValue = 0;
+             
+             // Cancel any fake progress timer if it was running
+             if (this.TT != null) {
+                 this.TT.cancel();
+                 this.TT = null;
+             }
          }
-    }
+     }
     
     private void SendBpResult(double sbp, double dbp) {}
 

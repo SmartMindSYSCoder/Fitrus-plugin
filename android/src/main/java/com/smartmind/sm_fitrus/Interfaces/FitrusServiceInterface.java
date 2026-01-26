@@ -79,6 +79,8 @@ public interface FitrusServiceInterface extends DeviceServiceInterface {
 
     void stopBFP();
 
+    void sendBFPResult(double var1);
+
     void spo2MeasureStart(String var1);
 
     void spo2LocalMeasureStart();

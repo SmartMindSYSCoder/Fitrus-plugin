@@ -6,18 +6,14 @@ import '../theme/app_theme.dart';
 /// User Input Form for Body Fat Measurement Parameters
 class UserInputForm extends StatefulWidget {
   final Function(UserInputData) onSubmit;
+  final VoidCallback? onCancel;
   final bool isLoading;
-  final bool isInitialized;
-
-  /// Whether device is currently connected (real-time check)
-  final bool isConnected;
 
   const UserInputForm({
     super.key,
     required this.onSubmit,
+    this.onCancel,
     this.isLoading = false,
-    this.isInitialized = false,
-    this.isConnected = false,
   });
 
   @override
@@ -81,12 +77,8 @@ class _UserInputFormState extends State<UserInputForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Enable button if initialized OR connected, provided not loading
-    final canStart =
-        (widget.isInitialized || widget.isConnected) && !widget.isLoading;
-
-    debugPrint(
-        'UserInputForm: canStart=$canStart (init=${widget.isInitialized}, conn=${widget.isConnected}, load=${widget.isLoading})');
+    // Button is enabled when not loading
+    final canStart = !widget.isLoading;
 
     return GlassCard(
       child: Form(
@@ -250,44 +242,66 @@ class _UserInputFormState extends State<UserInputForm> {
             ),
             const SizedBox(height: 28),
 
-            // Start Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: canStart ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: canStart
-                      ? AppTheme.primaryBlue
-                      : Colors.grey, // Grey when disabled
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            // Start/Cancel Button
+            if (widget.isLoading && widget.onCancel != null)
+              // Show Cancel button during measurement
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onCancel,
+                  icon: const Icon(Icons.close),
+                  label: const Text(
+                    'Cancel Measurement',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  elevation: canStart ? 4 : 0,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: AppTheme.accentOrange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
                 ),
-                child: widget.isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+              )
+            else
+              // Show Start button when not measuring
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: canStart ? _submit : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor:
+                        canStart ? AppTheme.primaryBlue : Colors.grey,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: canStart ? 4 : 0,
+                  ),
+                  child: widget.isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Start Measurement',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : Text(
-                        canStart
-                            ? 'Start Measurement'
-                            : (widget.isConnected
-                                ? 'Initializing...'
-                                : 'Connect Device First'),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                ),
               ),
-            ),
           ],
         ),
       ),

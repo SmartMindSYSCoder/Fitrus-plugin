@@ -84,6 +84,30 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
         if (call.method.equals("getPermissions")) {
             getPermissions();
+        } else if (call.method.equals("measureBFP")) {
+            // NEW: Unified measure method that handles init + measure in one call
+            String apiUrl = null;
+            String apiKey = null;
+            String gender = null;
+            String birth = null;
+            Double height = null;
+            Double weight = null;
+            
+            if (call.arguments() != null) {
+                Map<String, String> args = call.arguments();
+                apiUrl = args.get("apiUrl");  // Optional, will use default if null
+                apiKey = args.get("apiKey");
+                gender = args.get("gender");
+                birth = args.get("birth");
+                height = args.get("height") != null ? Double.parseDouble(args.get("height")) : null;
+                weight = args.get("weight") != null ? Double.parseDouble(args.get("weight")) : null;
+            }
+            
+            if (fitrusHandler != null) {
+                fitrusHandler.measureBFP(apiUrl, apiKey, birth, height, weight, gender, result);
+            } else {
+                if (result != null) result.error("HANDLER_NULL", "FitrusHandler is null", null);
+            }
         } else if (call.method.equals("init")) {
             String apiUrl = null;
             String apiKey = null;
@@ -105,6 +129,30 @@ public class SmFitrusPlugin implements FlutterPlugin, MethodCallHandler, Activit
             if (fitrusHandler != null) {
                 fitrusHandler.startBFP(birth, height, weight, gender);
             }
+        } else if (call.method.equals("sendBFPResult")) {
+            Double resultVal = 0.0;
+            if (call.arguments() != null) {
+                resultVal = call.argument("result");
+            }
+            if (fitrusHandler != null) {
+                fitrusHandler.sendBFPResult(resultVal != null ? resultVal : 0.0);
+            }
+            result.success(null);
+        } else if (call.method.equals("disconnect")) {
+            if (fitrusHandler != null) {
+                fitrusHandler.disconnect();
+            }
+            result.success(null);
+        } else if (call.method.equals("cancelMeasurement")) {
+             if (fitrusHandler != null) {
+                fitrusHandler.cancelMeasurement();
+            }
+            result.success(null);
+        } else if (call.method.equals("stopBFP")) {
+            if (fitrusHandler != null) {
+                fitrusHandler.stopBFP();
+            }
+            result.success(null);
         } else {
             result.notImplemented();
         }

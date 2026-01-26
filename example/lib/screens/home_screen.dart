@@ -4,7 +4,6 @@ import 'package:sm_fitrus/fitrus_model.dart';
 import 'package:sm_fitrus/sm_fitrus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_input_form.dart';
-import '../widgets/connection_status_card.dart';
 import '../widgets/results_card.dart';
 
 /// Home Screen - Main screen for Fitrus body fat measurement
@@ -34,31 +33,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   FitrusModel _fitrusModel = const FitrusModel();
   StreamSubscription? _subscription;
-  bool _isInitialized = false;
   bool _isMeasuring = false;
   bool _hasError = false;
   String? _errorMessage;
 
   @override
-  void dispose() {
-    _subscription?.cancel();
-    _smFitrus.dispose();
-    super.dispose();
-  }
-
-  Future<void> _getPermissions() async {
-    await _smFitrus.getPermissions();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Permission request sent'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _initFitrus() async {
-    // First subscribe to events
-    _subscription?.cancel();
+  void initState() {
+    super.initState();
+    // Set up event stream listener
     _subscription = _smFitrus.getEvents().listen((event) {
       debugPrint('Event received: ${event.connectionState}');
 
@@ -87,54 +69,26 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
     });
-
-    // Then initialize with required API config
-    final success = await _smFitrus.init(
-      apiKey: widget.apiKey,
-    );
-
-    if (success) {
-      setState(() {
-        _isInitialized = true;
-        _hasError = false;
-        _errorMessage = null;
-      });
-    }
   }
 
-  Future<void> _disposeFitrus() async {
+  @override
+  void dispose() {
     _subscription?.cancel();
-    _subscription = null;
-    await _smFitrus.dispose();
+    _smFitrus.dispose();
+    super.dispose();
+  }
 
-    setState(() {
-      // Preserve the last meaningful body fat result unless explicitly clearing
-      final lastBodyFat = _fitrusModel.bodyFat;
-
-      _fitrusModel = FitrusModel(
-        connectionState: FitrusConnectionState.disconnected,
-        rawConnectionState: 'Disconnected',
-        bodyFat: lastBodyFat, // Keep results even after disconnect
-      );
-      _isInitialized = false;
-      _isMeasuring = false;
-      _hasError = false;
-      _errorMessage = null;
-    });
+  Future<void> _getPermissions() async {
+    await _smFitrus.getPermissions();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Permission request sent'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _startMeasurement(UserInputData data) async {
-    if (!_isInitialized && !_fitrusModel.isConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please connect to device first'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppTheme.accentOrange,
-        ),
-      );
-      return;
-    }
-
     setState(() {
       _isMeasuring = true;
       _hasError = false;
@@ -143,11 +97,40 @@ class _HomeScreenState extends State<HomeScreen> {
       _fitrusModel = _fitrusModel.copyWith(bodyFat: null);
     });
 
-    await _smFitrus.startBFP(
+    // NEW: Use unified measureBFP API - handles init + connection + measurement
+    final success = await _smFitrus.measureBFP(
+      apiKey: widget.apiKey,
       heightCm: data.heightCm,
       weightKg: data.weightKg,
       gender: data.gender,
       birth: data.birthString,
+    );
+
+    if (!success) {
+      setState(() {
+        _isMeasuring = false;
+        _hasError = true;
+        _errorMessage = 'Failed to start measurement';
+      });
+    }
+    // If successful, listen to events stream for progress and results
+  }
+
+  Future<void> _cancelMeasurement() async {
+    await _smFitrus.cancelMeasurement();
+
+    setState(() {
+      _isMeasuring = false;
+      _hasError = false;
+      _errorMessage = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Measurement cancelled'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -189,6 +172,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.settings),
                   tooltip: 'Permissions',
                 ),
+                IconButton(
+                  onPressed: () async {
+                    await _smFitrus.powerOff();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Power off command sent'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.power_settings_new),
+                  tooltip: 'Power Off Device',
+                ),
                 const SizedBox(width: 8),
               ],
             ),
@@ -198,16 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Connection Status
-                  ConnectionStatusCard(
-                    fitrusModel: _fitrusModel,
-                    isInitialized: _isInitialized,
-                    onInit: _initFitrus,
-                    onDispose: _disposeFitrus,
-                  ),
-
-                  const SizedBox(height: 8),
-
                   // Results (if available)
                   if (_hasError || (_fitrusModel.bodyFat?.bmi ?? 0) > 0)
                     ResultsCard(
@@ -221,9 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // User Input Form
                   UserInputForm(
                     onSubmit: _startMeasurement,
+                    onCancel: _cancelMeasurement,
                     isLoading: _isMeasuring,
-                    isInitialized: _isInitialized,
-                    isConnected: _fitrusModel.isConnected,
                   ),
 
                   const SizedBox(height: 24),

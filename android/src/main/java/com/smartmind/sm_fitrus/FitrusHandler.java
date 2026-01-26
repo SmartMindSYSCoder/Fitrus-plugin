@@ -53,7 +53,15 @@ public class FitrusHandler implements EventChannel.StreamHandler {
     public void onListen(Object args, EventChannel.EventSink newEvents) {
         Log.e(TAG, "[" + System.identityHashCode(this) + "] onListen called. New events: " + newEvents + " (Previous: " + events + ")");
         events = newEvents;
-        sendConnectionUpdate(connectState);
+        
+        // Defensive check: If state says we are ready but interface is missing, 
+        // we are actually in a stale state (likely during re-init).
+        if (mFitLtServiceInterface == null && !"Disconnected".equals(connectState)) {
+            Log.w(TAG, "onListen: State is " + connectState + " but interface is NULL. Reporting Disconnected.");
+            sendConnectionUpdate("Disconnected");
+        } else {
+            sendConnectionUpdate(connectState);
+        }
     }
 
     @Override
@@ -75,7 +83,7 @@ public class FitrusHandler implements EventChannel.StreamHandler {
         @Override
         public void run() {
             if (pendingInitResult != null) {
-                Log.d(TAG, "Init timeout reached (2s). Returning result=false (or partial success if scanning).");
+                Log.d(TAG, "Init timeout reached (10s). Returning result=false.");
                 try {
                     // We return true here to allow the app to proceed even if not fully ready yet,
                     // but the user asked for a wait. If we return false, init fails on Dart side.
@@ -94,6 +102,134 @@ public class FitrusHandler implements EventChannel.StreamHandler {
     };
 
     private static final String DEFAULT_API_URL = "https://api.thefitrus.com/fitrus-ml/measure/bodyfat";
+
+    /**
+     * NEW: Unified measurement method that handles init + scan + connect + measure in one call.
+     * This simplifies the API and provides better stability with automatic retry.
+     */
+    public void measureBFP(String apiUrl, String apiKey, String birth, Double height, Double weight, String gender, MethodChannel.Result result) {
+        Log.e(TAG, "[" + System.identityHashCode(this) + "] measureBFP() called (unified API)");
+
+        // Store measurement parameters for later use after connection
+        this.lastHeight = height != null ? height : 0;
+        this.lastWeight = weight != null ? weight : 0;
+        
+        // Cleanup previous pending result if any
+        if (this.pendingInitResult != null) {
+            try { this.pendingInitResult.success(false); } catch(Exception e) {}
+            this.pendingInitResult = null;
+            mainHandler.removeCallbacks(initTimeoutRunnable);
+        }
+
+        // Store result for async completion
+        this.pendingInitResult = result;
+
+        // Store API config for when service connects
+        if (apiUrl == null || apiUrl.isEmpty()) {
+            this.pendingApiUrl = DEFAULT_API_URL;
+            Log.d(TAG, "Using Default API URL: " + DEFAULT_API_URL);
+        } else {
+            this.pendingApiUrl = apiUrl;
+        }
+        this.pendingApiKey = apiKey;
+
+        // Store measurement params to execute after connection
+        pendingMeasurementParams = new MeasurementParams(birth, height, weight, gender);
+
+        // If already connected and ready, just start measurement
+        if (mFitLtServiceInterface != null && ("Service Discovered".equals(connectState) || "Connected".equals(connectState))) {
+            Log.d(TAG, "Already connected. Starting measurement directly.");
+            if (mFitLtServiceInterface != null) {
+                mFitLtServiceInterface.setApiConfig(pendingApiUrl, pendingApiKey);
+            }
+            
+            // Start measurement immediately
+            if (pendingMeasurementParams != null) {
+                startBFP(
+                    pendingMeasurementParams.birth,
+                    pendingMeasurementParams.height,
+                    pendingMeasurementParams.weight,
+                    pendingMeasurementParams.gender
+                );
+            }
+            
+            if (pendingInitResult != null) {
+                pendingInitResult.success(true);
+                pendingInitResult = null;
+            }
+            return;
+        }
+
+        // Start timeout (10 seconds for better reliability)
+        mainHandler.postDelayed(initTimeoutRunnable, 10000);
+
+        // Reset state for fresh connection
+        this.connectState = "Disconnected";
+        if (mFitLtServiceInterface != null) {
+            Log.d(TAG, "Disposing existing connection before unified measurement");
+            try {
+                mFitLtServiceInterface.stopFitrusScan();
+                mFitLtServiceInterface.closeFitrus();
+            } catch (Exception e) {
+                Log.w(TAG, "Error during pre-measure dispose: " + e.getMessage());
+            }
+            try {
+                applicationContext.unbindService(mServiceConnection);
+            } catch (Exception e) { /* Ignore */ }
+            try {
+                LocalBroadcastManager.getInstance(applicationContext).unregisterReceiver(mGattUpdateReceiver);
+            } catch (Exception e) { /* Ignore */ }
+            mFitLtServiceInterface = null;
+        }
+
+        // Validate preconditions
+        if (!isBluetoothEnabled()) {
+            Toast.makeText(applicationContext, "Bluetooth is not enabled. Please enable Bluetooth.", Toast.LENGTH_SHORT).show();
+            mainHandler.removeCallbacks(initTimeoutRunnable);
+            if (pendingInitResult != null) {
+                pendingInitResult.success(false);
+                pendingInitResult = null;
+            }
+            return;
+        }
+
+        if (!isNetworkAvailable()) {
+            Toast.makeText(applicationContext, "Internet connection is required.", Toast.LENGTH_SHORT).show();
+            mainHandler.removeCallbacks(initTimeoutRunnable);
+            if (pendingInitResult != null) {
+                pendingInitResult.success(false);
+                pendingInitResult = null;
+            }
+            return;
+        }
+
+        if (isPermissionsGranted()) {
+            Log.d(TAG, "Starting unified measurement flow (init + measure)");
+            Intent serviceIntent = new Intent(applicationContext, DeviceService.class);
+            applicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
+        } else {
+            Toast.makeText(applicationContext, "Permission not granted\nPlease check permission first", Toast.LENGTH_SHORT).show();
+            checkPermissions();
+            // Timeout will handle the false return
+        }
+    }
+
+    // Helper class to store measurement parameters
+    private static class MeasurementParams {
+        final String birth;
+        final Double height;
+        final Double weight;
+        final String gender;
+
+        MeasurementParams(String birth, Double height, Double weight, String gender) {
+            this.birth = birth;
+            this.height = height;
+            this.weight = weight;
+            this.gender = gender;
+        }
+    }
+
+    private MeasurementParams pendingMeasurementParams = null;
 
     public void init(String apiUrl, String apiKey, MethodChannel.Result result) {
         Log.e(TAG, "[" + System.identityHashCode(this) + "] init() called. State: " + connectState + ", apiUrl: " + apiUrl);
@@ -117,7 +253,7 @@ public class FitrusHandler implements EventChannel.StreamHandler {
         this.pendingApiKey = apiKey;
         
         // If already ready, return immediately
-        if ("Service Discovered".equals(connectState) || "Connected".equals(connectState)) {
+        if (mFitLtServiceInterface != null && ("Service Discovered".equals(connectState) || "Connected".equals(connectState))) {
              Log.d(TAG, "Already connected/ready. Updating API config and returning true.");
              if (mFitLtServiceInterface != null) {
                  mFitLtServiceInterface.setApiConfig(pendingApiUrl, pendingApiKey);
@@ -129,10 +265,12 @@ public class FitrusHandler implements EventChannel.StreamHandler {
              return;
         }
 
-        // Start timeout (2 seconds)
-        mainHandler.postDelayed(initTimeoutRunnable, 2000);
+        // Start timeout (10 seconds for better reliability)
+        mainHandler.postDelayed(initTimeoutRunnable, 10000);
 
-        // Dispose existing if needed (logic from before)
+        // ALWAYS reset state when initiating a fresh start/init request
+        // if we are not already in a ready/connecting state with a valid interface.
+        this.connectState = "Disconnected";
         if (mFitLtServiceInterface != null) {
             // ... (keep existing dispose logic if intended, but be careful not to break aggressive re-init)
             // Existing logic disposed connection. We keep it.
@@ -150,7 +288,6 @@ public class FitrusHandler implements EventChannel.StreamHandler {
                 LocalBroadcastManager.getInstance(applicationContext).unregisterReceiver(mGattUpdateReceiver);
             } catch (Exception e) { /* Ignore */ }
             mFitLtServiceInterface = null;
-            connectState = "Disconnected";
         }
 
         if (!isBluetoothEnabled()) {
@@ -246,8 +383,10 @@ public class FitrusHandler implements EventChannel.StreamHandler {
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
-            Log.d(TAG, "[" + System.identityHashCode(this) + "] Service Disconnected");
+            Log.d(TAG, "[" + System.identityHashCode(this) + "] Service Disconnected - resetting state");
             mFitLtServiceInterface = null;
+            connectState = "Disconnected";
+            sendConnectionUpdate(connectState);
         }
     };
 
@@ -288,6 +427,18 @@ public class FitrusHandler implements EventChannel.StreamHandler {
                             Log.e(TAG, "Error resolving init result", e);
                         }
                         pendingInitResult = null;
+                    }
+                    
+                    // NEW: If using unified measureBFP API, automatically start measurement
+                    if (pendingMeasurementParams != null) {
+                        Log.d(TAG, "Auto-starting measurement after service discovery (unified API)");
+                        final MeasurementParams params = pendingMeasurementParams;
+                        pendingMeasurementParams = null; // Clear to avoid re-triggering
+                        
+                        // Use a small delay to ensure service is fully ready
+                        mainHandler.postDelayed(() -> {
+                            startBFP(params.birth, params.height, params.weight, params.gender);
+                        }, 500);
                     }
                     break;
                 case FitrusConstants.ACTION_DATA_AVAILABLE:
@@ -388,8 +539,50 @@ public class FitrusHandler implements EventChannel.StreamHandler {
         }
     }
 
+    public void stopBFP() {
+        Log.i(TAG, "[" + System.identityHashCode(this) + "] stopBFP() called");
+        if (mFitLtServiceInterface != null) {
+            mFitLtServiceInterface.stopBFP();
+        }
+    }
+
+    public void sendBFPResult(double result) {
+        Log.i(TAG, "[" + System.identityHashCode(this) + "] sendBFPResult() called: " + result);
+        if (mFitLtServiceInterface != null) {
+            mFitLtServiceInterface.sendBFPResult(result);
+        }
+    }
+
+    public void disconnect() {
+        Log.i(TAG, "[" + System.identityHashCode(this) + "] disconnect() called");
+        if (mFitLtServiceInterface != null) {
+            mFitLtServiceInterface.disconnectFitrus();
+        }
+        // Update state but don't clear events or unbind service yet
+        connectState = "Disconnected";
+        sendConnectionUpdate("Disconnected");
+    }
+
+    public void cancelMeasurement() {
+        Log.i(TAG, "[" + System.identityHashCode(this) + "] cancelMeasurement() called");
+        
+        // 1. Send 0.0 Result (as requested to stop measurement)
+        sendBFPResult(0.0);
+        
+        // 2. Dispose the service (as requested)
+        // We delay slightly to ensure the Bluetooth command (0.0 result) has a chance to be queued/sent
+        // before we kill the service connection.
+        mainHandler.postDelayed(() -> {
+            dispose();
+        }, 500);
+    }
+
     public void dispose() {
         Log.i(TAG, "[" + System.identityHashCode(this) + "] dispose() called");
+        connectState = "Disconnected";
+        // Do NOT set events = null here. The Flutter EventChannel stream is still open
+        // and we need to be able to send events if the user starts a new measurement.
+        // events = null; 
         if (mFitLtServiceInterface != null) {
             mFitLtServiceInterface.stopFitrusScan();
             mFitLtServiceInterface.closeFitrus();
