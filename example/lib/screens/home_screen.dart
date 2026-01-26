@@ -208,6 +208,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     onSubmit: _startMeasurement,
                     onCancel: _cancelMeasurement,
                     isLoading: _isMeasuring,
+                    progress: _fitrusModel.progress,
+                    statusMessage: _fitrusModel.hasProgress
+                        ? 'Measuring... ${_fitrusModel.progress}%'
+                        : _fitrusModel.rawConnectionState.isNotEmpty
+                            ? 'Status: ${_fitrusModel.rawConnectionState}'
+                            : _isMeasuring
+                                ? 'Initializing...'
+                                : null,
                   ),
 
                   const SizedBox(height: 24),

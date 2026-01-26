@@ -62,8 +62,7 @@ class FitrusModel {
     /*
       original: data['connectState'] !=null  && data['connectState'].toString().toLowerCase().contains("data")  || ['Connected','Service Discovered'].contains(data['connectState'].toString())
     */
-    final bool derivedIsConnected =
-        state == FitrusConnectionState.connected ||
+    final bool derivedIsConnected = state == FitrusConnectionState.connected ||
         state == FitrusConnectionState.discoveringServices ||
         state == FitrusConnectionState.dataAvailable ||
         rawState.toLowerCase().contains('data');
@@ -74,7 +73,8 @@ class FitrusModel {
       hasProgress: json['hasProgress'] ?? false,
       connectionState: state,
       rawConnectionState: rawState,
-      progress: int.tryParse(json['progress']?.toString() ?? '0') ?? 0,
+      progress:
+          (num.tryParse(json['progress']?.toString() ?? '0') ?? 0).toInt(),
       bodyFat: json['hasData'] == true ? BodyFat.fromJson(json) : null,
     );
   }

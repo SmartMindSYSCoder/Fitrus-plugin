@@ -8,12 +8,16 @@ class UserInputForm extends StatefulWidget {
   final Function(UserInputData) onSubmit;
   final VoidCallback? onCancel;
   final bool isLoading;
+  final int progress;
+  final String? statusMessage;
 
   const UserInputForm({
     super.key,
     required this.onSubmit,
     this.onCancel,
     this.isLoading = false,
+    this.progress = 0,
+    this.statusMessage,
   });
 
   @override
@@ -243,7 +247,33 @@ class _UserInputFormState extends State<UserInputForm> {
             const SizedBox(height: 28),
 
             // Start/Cancel Button
-            if (widget.isLoading && widget.onCancel != null)
+            if (widget.isLoading && widget.onCancel != null) ...[
+              // Show Status and Progress
+              if (widget.statusMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    widget.statusMessage!,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary.withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              if (widget.progress > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: widget.progress / 100.0,
+                      backgroundColor: AppTheme.backgroundDark,
+                      color: AppTheme.primaryBlue,
+                      minHeight: 8,
+                    ),
+                  ),
+                ),
+
               // Show Cancel button during measurement
               SizedBox(
                 width: double.infinity,
@@ -268,7 +298,7 @@ class _UserInputFormState extends State<UserInputForm> {
                   ),
                 ),
               )
-            else
+            ] else
               // Show Start button when not measuring
               SizedBox(
                 width: double.infinity,
